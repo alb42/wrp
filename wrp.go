@@ -191,6 +191,8 @@ func (rq *wrpReq) action() chromedp.Action {
 		switch rq.buttons {
 		case "Bk":
 			return chromedp.NavigateBack()
+		case "Fw":
+			return chromedp.NavigateForward()
 		case "St":
 			return chromedp.Stop()
 		case "Re":
