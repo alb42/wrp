@@ -87,6 +87,7 @@ type uiData struct {
 	ImgHeight  int
 	MapURL     string
 	PageHeight string
+	Title      string
 }
 
 // Parameters for HTML print function
@@ -112,6 +113,7 @@ type wrpReq struct {
 	keys    string  // keys to send
 	buttons string  // Fn buttons
 	imgType string  // imgtype
+	title   string  // titlepage
 	w       http.ResponseWriter
 	r       *http.Request
 }
@@ -171,6 +173,7 @@ func (rq *wrpReq) printHTML(p printParams) {
 		ImgURL:     p.imgURL,
 		MapURL:     p.mapURL,
 		PageHeight: p.pageHeight,
+		Title:      rq.title,
 	}
 	err := htmlTmpl.Execute(rq.w, data)
 	if err != nil {
@@ -307,6 +310,7 @@ func (rq *wrpReq) capture() {
 	chromedp.Run(ctx,
 		emulation.SetDeviceMetricsOverride(int64(float64(rq.width)/rq.zoom), 10, rq.zoom, false),
 		chromedp.Location(&rq.url),
+		chromedp.Title(&rq.title),
 		chromedp.ComputedStyle("body", &styles, chromedp.ByQuery),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			_, _, _, _, _, s, err := page.GetLayoutMetrics().Do(ctx)
