@@ -53,6 +53,7 @@ var (
 	fgeom       = flag.String("g", "1152x600x216", "Geometry: width x height x colors, height can be 0 for unlimited")
 	htmFnam     = flag.String("ui", "wrp.html", "HTML template file for the UI")
 	delay       = flag.Duration("s", 2*time.Second, "Delay/sleep after page is rendered and before screenshot is taken")
+	token       = flag.String("token", "", "If set, all requests need to have this set as Bearer header")
 	srv         http.Server
 	actx, ctx   context.Context
 	acncl, cncl context.CancelFunc
@@ -404,8 +405,29 @@ func (rq *wrpReq) capture() {
 	log.Printf("%s Done with capture for %s\n", rq.r.RemoteAddr, rq.url)
 }
 
+func checkBearerToken(r *http.Request) bool {
+	if *token == "" {
+		return true
+	}
+
+	requestToken := r.Header.Get("Bearer")
+	if requestToken == *token {
+		return true
+	}
+
+	log.Printf("%s Invalid token given in Bearer: '%s' [%+v]\n", r.RemoteAddr, requestToken, r.URL.RawQuery)
+	return false
+}
+
 // Process HTTP requests to WRP '/' url
 func pageServer(w http.ResponseWriter, r *http.Request) {
+	if !checkBearerToken(r) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.(http.Flusher).Flush()
+
+		return
+	}
+
 	log.Printf("%s Page Request for %s [%+v]\n", r.RemoteAddr, r.URL.Path, r.URL.RawQuery)
 	rq := wrpReq{
 		r: r,
@@ -422,6 +444,13 @@ func pageServer(w http.ResponseWriter, r *http.Request) {
 
 // Process HTTP requests to ISMAP '/map/' url
 func mapServer(w http.ResponseWriter, r *http.Request) {
+	if !checkBearerToken(r) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.(http.Flusher).Flush()
+
+		return
+	}
+
 	log.Printf("%s ISMAP Request for %s [%+v]\n", r.RemoteAddr, r.URL.Path, r.URL.RawQuery)
 	rq, ok := ismap[r.URL.Path]
 	rq.r = r
@@ -451,6 +480,13 @@ func mapServer(w http.ResponseWriter, r *http.Request) {
 
 // Process HTTP requests for images '/img/' url
 func imgServer(w http.ResponseWriter, r *http.Request) {
+	if !checkBearerToken(r) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.(http.Flusher).Flush()
+
+		return
+	}
+
 	log.Printf("%s IMG Request for %s\n", r.RemoteAddr, r.URL.Path)
 	imgBuf, ok := img[r.URL.Path]
 	if !ok || imgBuf.Bytes() == nil {
@@ -562,6 +598,11 @@ func main() {
 
 	log.Printf("Web Rendering Proxy Version %s\n", version)
 	log.Printf("Args: %q", os.Args)
+	if *token != "" {
+		log.Printf("Authentication configured: %s must be given as Bearer header in all requests", *token)
+	} else {
+		log.Printf("Notice: NO AUTHENTICATION CONFIGURED!")
+	}
 	if len(os.Getenv("PORT")) > 0 {
 		*addr = ":" + os.Getenv(("PORT"))
 	}
