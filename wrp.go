@@ -554,6 +554,12 @@ func printIPs(b string) {
 func main() {
 	var err error
 	flag.Parse()
+
+	logfile, err := os.OpenFile("/tmp/wrp.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err == nil {
+		log.SetOutput(logfile)
+	}
+
 	log.Printf("Web Rendering Proxy Version %s\n", version)
 	log.Printf("Args: %q", os.Args)
 	if len(os.Getenv("PORT")) > 0 {
