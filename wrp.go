@@ -35,8 +35,10 @@ import (
 	"time"
 
 	"github.com/MaxHalford/halfgone"
+	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/css"
 	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	"github.com/soniakeys/quant/median"
@@ -89,6 +91,8 @@ type uiData struct {
 	MapURL     string
 	PageHeight string
 	Title      string
+	DownURL    string
+	DownType   string
 }
 
 // Parameters for HTML print function
@@ -104,19 +108,21 @@ type printParams struct {
 
 // WRP Request
 type wrpReq struct {
-	url     string  // url
-	width   int64   // width
-	height  int64   // height
-	zoom    float64 // zoom/scale
-	colors  int64   // #colors
-	mouseX  int64   // mouseX
-	mouseY  int64   // mouseY
-	keys    string  // keys to send
-	buttons string  // Fn buttons
-	imgType string  // imgtype
-	title   string  // titlepage
-	w       http.ResponseWriter
-	r       *http.Request
+	url      string  // url
+	width    int64   // width
+	height   int64   // height
+	zoom     float64 // zoom/scale
+	colors   int64   // #colors
+	mouseX   int64   // mouseX
+	mouseY   int64   // mouseY
+	keys     string  // keys to send
+	buttons  string  // Fn buttons
+	imgType  string  // imgtype
+	title    string  // titlepage
+	downurl  string
+	downtype string
+	w        http.ResponseWriter
+	r        *http.Request
 }
 
 // Parse HTML Form, Process Input Boxes, Etc.
@@ -175,6 +181,8 @@ func (rq *wrpReq) printHTML(p printParams) {
 		MapURL:     p.mapURL,
 		PageHeight: p.pageHeight,
 		Title:      rq.title,
+		DownURL:    rq.downurl,
+		DownType:   rq.downtype,
 	}
 	err := htmlTmpl.Execute(rq.w, data)
 	if err != nil {
@@ -182,13 +190,50 @@ func (rq *wrpReq) printHTML(p printParams) {
 	}
 }
 
+func isDownloadable(mime string) bool {
+	notOK := [...]string{
+		"application/javascript",
+		"application/xhtml+xml",
+		"application/x-httpd-php",
+		"application/json",
+		"image/gif",
+		"image/jpeg",
+		"image/png",
+		"text/",
+		"font/",
+	}
+	for i := 0; i < len(notOK); i++ {
+		if strings.Contains(mime, notOK[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // Determine what action to take
 func (rq *wrpReq) action() chromedp.Action {
+	rq.downurl = ""
+	rq.downtype = ""
+	var IsSet bool
+	IsSet = false
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *network.EventResponseReceived:
+			{
+				if !IsSet || isDownloadable(ev.Response.MimeType) {
+					rq.downurl = ev.Response.URL
+					rq.downtype = ev.Response.MimeType
+					IsSet = true
+				}
+			}
+		}
+	})
 	// Mouse Click
 	if rq.mouseX > 0 && rq.mouseY > 0 {
 		log.Printf("%s Mouse Click %d,%d\n", rq.r.RemoteAddr, rq.mouseX, rq.mouseY)
 		return chromedp.MouseClickXY(float64(rq.mouseX)/float64(rq.zoom), float64(rq.mouseY)/float64(rq.zoom))
 	}
+
 	// Buttons
 	if len(rq.buttons) > 0 {
 		log.Printf("%s Button %v\n", rq.r.RemoteAddr, rq.buttons)
@@ -227,6 +272,12 @@ func (rq *wrpReq) action() chromedp.Action {
 
 // Navigate to the desired URL.
 func (rq *wrpReq) navigate() {
+
+	chromedp.ListenTarget(ctx, func(v interface{}) {
+		if ev, ok := v.(*browser.EventDownloadWillBegin); ok {
+			log.Printf("Download will begin %s", ev.URL)
+		}
+	})
 	ctxErr(chromedp.Run(ctx, rq.action()), rq.w)
 }
 
