@@ -54,6 +54,7 @@ var (
 	fgeom       = flag.String("g", "1152x600x216", "Geometry: width x height x colors, height can be 0 for unlimited")
 	htmFnam     = flag.String("ui", "wrp.html", "HTML template file for the UI")
 	delay       = flag.Duration("s", 2*time.Second, "Delay/sleep after page is rendered and before screenshot is taken")
+	imgOpti     = flag.Bool("O", false, "Optimize images with external tools (optipng, jpegoptim)")
 	srv         http.Server
 	actx, ctx   context.Context
 	acncl, cncl context.CancelFunc
@@ -394,7 +395,10 @@ func (rq *wrpReq) capture() {
 		log.Printf("%s Encoded JPG image: %s, Size: %s, Quality: %d, Res: %dx%d, Time: %vms\n", rq.r.RemoteAddr, imgPath, sSize, *jpgQual, iW, iH, time.Since(st).Milliseconds())
 	}
 
-	img[imgPath] = *bytes.NewBuffer(optimizeImageFile(imgPath, rq.colors, img[imgPath]))
+	if *imgOpti {
+		img[imgPath] = *bytes.NewBuffer(optimizeImageFile(imgPath, rq.colors, img[imgPath]))
+	}
+
 	rq.printHTML(printParams{
 		bgColor:    fmt.Sprintf("#%02X%02X%02X", r, g, b),
 		pageHeight: fmt.Sprintf("%d PX", h),
