@@ -596,6 +596,13 @@ func optimizeImageFile(imgPath string, colors int64, buffer bytes.Buffer) []byte
 	}
 
 	log.Printf("Optimized image, new filesize: %d KB", size)
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			log.Printf("Can't unlink tmp file")
+		}
+	}(tmpFileName)
+
 	return b
 }
 
