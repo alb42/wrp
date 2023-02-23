@@ -3,7 +3,7 @@ FROM chromedp/headless-shell
 # Install image optimization tools
 RUN apt-get -y update --fix-missing && \
     apt-get upgrade -y && \
-    apt-get --no-install-recommends install -y optipng jpegoptim && \
+    apt-get --no-install-recommends install -y optipng jpegoptim gifsicle && \
     rm -rf /var/lib/apt/lists/*
 
 ADD wrp /wrp
