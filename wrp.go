@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -55,6 +56,7 @@ var (
 	fgeom       = flag.String("g", "1152x600x216", "Geometry: width x height x colors, height can be 0 for unlimited")
 	htmFnam     = flag.String("ui", "wrp.html", "HTML template file for the UI")
 	delay       = flag.Duration("s", 2*time.Second, "Delay/sleep after page is rendered and before screenshot is taken")
+	imgOpti     = flag.Bool("O", false, "Optimize images with external tools (optipng, jpegoptim)")
 	token       = flag.String("token", "", "If set, all requests need to have this set as Bearer header")
 	srv         http.Server
 	actx, ctx   context.Context
@@ -272,7 +274,6 @@ func (rq *wrpReq) action() chromedp.Action {
 
 // Navigate to the desired URL.
 func (rq *wrpReq) navigate() {
-
 	chromedp.ListenTarget(ctx, func(v interface{}) {
 		if ev, ok := v.(*browser.EventDownloadWillBegin); ok {
 			log.Printf("Download will begin %s", ev.URL)
@@ -444,6 +445,11 @@ func (rq *wrpReq) capture() {
 		iH = i.Bounds().Max.Y
 		log.Printf("%s Encoded JPG image: %s, Size: %s, Quality: %d, Res: %dx%d, Time: %vms\n", rq.r.RemoteAddr, imgPath, sSize, *jpgQual, iW, iH, time.Since(st).Milliseconds())
 	}
+
+	if *imgOpti {
+		img[imgPath] = *bytes.NewBuffer(optimizeImageFile(imgPath, rq.colors, img[imgPath]))
+	}
+
 	rq.printHTML(printParams{
 		bgColor:    fmt.Sprintf("#%02X%02X%02X", r, g, b),
 		pageHeight: fmt.Sprintf("%d PX", h),
@@ -635,6 +641,59 @@ func printIPs(b string) {
 		m = m + n.IP.String() + " "
 	}
 	log.Print("My IP addresses: ", m)
+}
+
+func optimizeImageFile(imgPath string, colors int64, buffer bytes.Buffer) []byte {
+	var fileExt = string(imgPath[len(imgPath)-3:])
+	var tmpFileName = strings.Replace(imgPath, "/img/", "/tmp/", 1)
+
+	err := ioutil.WriteFile(tmpFileName, buffer.Bytes(), 0644)
+	if err != nil {
+		log.Print("Unable to write tempfile to optimize image: ", err)
+	}
+
+	switch fileExt {
+	case "png":
+		_, err := exec.Command("optipng", tmpFileName).Output()
+		if err != nil {
+			log.Print("Unable to optimize PNG image: ", err)
+		}
+	case "jpg":
+	case "peg":
+		// @todo savings barely existing (around 1kb)
+		_, err := exec.Command("jpegoptim", "-s", "-p", "-P", tmpFileName).Output()
+		if err != nil {
+			log.Print("Unable to optimize JPG image: ", err)
+		}
+	case "gif":
+		return buffer.Bytes()
+		// @todo savings sometimes even negative - guess we can omit this one, wtf. try without palette stuff
+		_, err := exec.Command("gifsicle", "-i", tmpFileName, "-O3", "--colors", strconv.FormatInt(colors, 10), "-lossy=100", "-o", tmpFileName).Output()
+		if err != nil {
+			log.Print("Unable to optimize GIF image: ", err)
+		}
+	}
+
+	fi, err := os.Stat(tmpFileName)
+	if err != nil {
+		log.Print("Unable to readback optimized image: ", err)
+	}
+	size := fi.Size() / 1024
+
+	b, err := os.ReadFile(tmpFileName)
+	if err != nil {
+		log.Print("Unable to readback optimized image: ", err)
+	}
+
+	log.Printf("Optimized image, new filesize: %d KB", size)
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			log.Printf("Can't unlink tmp file")
+		}
+	}(tmpFileName)
+
+	return b
 }
 
 // Main
