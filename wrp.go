@@ -49,6 +49,7 @@ const version = "4.6.0"
 
 var (
 	addr        = flag.String("l", ":8080", "Listen address:port, default :8080")
+	tlsAddr     = flag.String("sl", ":8081", "TLS Listen address:port, default :8081 (requires cert.crt/private.key)")
 	headless    = flag.Bool("h", true, "Headless mode / hide browser window (default true)")
 	noDel       = flag.Bool("n", false, "Do not free maps and images after use")
 	defType     = flag.String("t", "gif", "Image type: png|gif|jpg")
@@ -59,6 +60,7 @@ var (
 	imgOpti     = flag.Bool("O", false, "Optimize images with external tools (optipng, jpegoptim)")
 	token       = flag.String("token", "", "If set, all requests need to have this set as Bearer header")
 	srv         http.Server
+	httpsSrv    http.Server
 	actx, ctx   context.Context
 	acncl, cncl context.CancelFunc
 	img         = make(map[string]bytes.Buffer)
@@ -717,6 +719,7 @@ func main() {
 		*addr = ":" + os.Getenv(("PORT"))
 	}
 	printIPs(*addr)
+	printIPs(*tlsAddr)
 	n, err := fmt.Sscanf(*fgeom, "%dx%dx%d", &defGeom.w, &defGeom.h, &defGeom.c)
 	if err != nil || n != 3 {
 		log.Fatalf("Unable to parse -g geometry flag / %s", err)
@@ -757,10 +760,27 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if _, err := os.Stat("./cert.crt"); err == nil {
+		if _, err := os.Stat("./private.key"); err == nil {
+			log.Print("Starting WRP https server")
+			httpsSrv.Addr = *tlsAddr
+			go func() {
+				err = httpsSrv.ListenAndServeTLS("cert.crt", "private.key")
+				if err != nil {
+					log.Print("TLS server startup failed, only HTTP will be available. Reason: ", err)
+				}
+			}()
+		} else {
+			log.Print("No private key for the SSL certificate available, can't start https server.")
+		}
+	} else {
+		log.Print("No SSL certificate available, can't start https server.")
+	}
+
 	log.Print("Starting WRP http server")
 	srv.Addr = *addr
 	err = srv.ListenAndServe()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("http server err: ", err)
 	}
 }
