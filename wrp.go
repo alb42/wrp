@@ -203,6 +203,8 @@ func isDownloadable(mime string) bool {
 		"image/gif",
 		"image/jpeg",
 		"image/png",
+		"image/svg",
+		"image/webp",
 		"text/",
 		"font/",
 	}
