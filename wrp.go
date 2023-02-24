@@ -39,6 +39,7 @@ import (
 	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/css"
 	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
@@ -117,8 +118,10 @@ type wrpReq struct {
 	height   int64   // height
 	zoom     float64 // zoom/scale
 	colors   int64   // #colors
-	mouseX   int64   // mouseX
-	mouseY   int64   // mouseY
+	mouseX   int64   // mouseX down
+	mouseY   int64   // mouseY down
+	mouseX2  int64   // mouseX release
+	mouseY2  int64   // mouseY release
 	keys     string  // keys to send
 	buttons  string  // Fn buttons
 	imgType  string  // imgtype
@@ -216,6 +219,38 @@ func isDownloadable(mime string) bool {
 	return true
 }
 
+func MouseDrag(x1, y1, x2, y2 float64, opts ...chromedp.MouseOption) chromedp.MouseAction {
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		p := &input.DispatchMouseEventParams{
+			Type:       input.MousePressed,
+			X:          x1,
+			Y:          y1,
+			Button:     input.Left,
+			ClickCount: 1,
+		}
+
+		// apply opts
+		for _, o := range opts {
+			p = o(p)
+		}
+
+		if err := p.Do(ctx); err != nil {
+			return err
+		}
+
+		p.Type = input.MouseMoved
+		p.X = x2
+		p.Y = y2
+
+		if err := p.Do(ctx); err != nil {
+			return err
+		}
+
+		p.Type = input.MouseReleased
+		return p.Do(ctx)
+	})
+}
+
 // Determine what action to take
 func (rq *wrpReq) action() chromedp.Action {
 	rq.downurl = ""
@@ -236,8 +271,13 @@ func (rq *wrpReq) action() chromedp.Action {
 	})
 	// Mouse Click
 	if rq.mouseX > 0 && rq.mouseY > 0 {
-		log.Printf("%s Mouse Click %d,%d\n", rq.r.RemoteAddr, rq.mouseX, rq.mouseY)
-		return chromedp.MouseClickXY(float64(rq.mouseX)/float64(rq.zoom), float64(rq.mouseY)/float64(rq.zoom))
+		if rq.mouseX == rq.mouseX2 && rq.mouseY == rq.mouseY2 {
+			log.Printf("%s Mouse Click %d,%d\n", rq.r.RemoteAddr, rq.mouseX, rq.mouseY)
+			return chromedp.MouseClickXY(float64(rq.mouseX)/float64(rq.zoom), float64(rq.mouseY)/float64(rq.zoom))
+		} else {
+			log.Printf("%s Mouse Move Click %d,%d,%d,%d\n", rq.r.RemoteAddr, rq.mouseX, rq.mouseY, rq.mouseX2, rq.mouseY2)
+			return MouseDrag(float64(rq.mouseX)/float64(rq.zoom), float64(rq.mouseY)/float64(rq.zoom), float64(rq.mouseX2)/float64(rq.zoom), float64(rq.mouseY2)/float64(rq.zoom))
+		}
 	}
 
 	// Buttons
@@ -529,6 +569,13 @@ func mapServer(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "n=%d, err=%s\n", n, err)
 		log.Printf("%s ISMAP n=%d, err=%s\n", r.RemoteAddr, n, err)
 		return
+	}
+	rq.mouseX2 = rq.mouseX
+	rq.mouseY2 = rq.mouseY
+	n1, err1 := fmt.Sscanf(r.URL.RawQuery, "%d,%d,%d,%d", &rq.mouseX, &rq.mouseY, &rq.mouseX2, &rq.mouseY2)
+	if err1 != nil || n1 != 4 {
+		rq.mouseX2 = rq.mouseX
+		rq.mouseY2 = rq.mouseY
 	}
 	log.Printf("%s WrpReq from ISMAP: %+v\n", r.RemoteAddr, rq)
 	if len(rq.url) < 4 {
