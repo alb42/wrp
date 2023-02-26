@@ -200,11 +200,13 @@ func (rq *wrpReq) printHTML(p printParams) {
 func isDownloadable(mime string) bool {
 	notOK := [...]string{
 		"application/javascript",
+		"application/x-javascript",
 		"application/xhtml+xml",
 		"application/x-httpd-php",
 		"application/json",
 		"image/gif",
 		"image/jpeg",
+		"image/jpg",
 		"image/png",
 		"image/svg",
 		"image/webp",
@@ -261,10 +263,12 @@ func (rq *wrpReq) action() chromedp.Action {
 		switch ev := ev.(type) {
 		case *network.EventResponseReceived:
 			{
-				if !IsSet || isDownloadable(ev.Response.MimeType) {
-					rq.downurl = ev.Response.URL
-					rq.downtype = ev.Response.MimeType
-					IsSet = true
+				if isDownloadable(ev.Response.MimeType) {
+					if !IsSet {
+						rq.downurl = ev.Response.URL
+						rq.downtype = ev.Response.MimeType
+						IsSet = true
+					}
 				}
 			}
 		}
