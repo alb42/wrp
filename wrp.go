@@ -312,7 +312,6 @@ func (rq *wrpReq) action() chromedp.Action {
 	}
 	// Keys
 	if len(rq.keys) > 0 {
-		log.Printf("%s Sending Keys: %#v\n", rq.r.RemoteAddr, rq.keys)
 		return chromedp.KeyEvent(rq.keys)
 	}
 	// Navigate to URL
