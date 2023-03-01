@@ -60,6 +60,7 @@ var (
 	delay       = flag.Duration("s", 2*time.Second, "Delay/sleep after page is rendered and before screenshot is taken")
 	imgOpti     = flag.Bool("O", false, "Optimize images with external tools (optipng, jpegoptim)")
 	token       = flag.String("token", "", "If set, all requests need to have this set as Bearer header")
+	logTarget   = flag.String("log", "", "If set, logging will go to this file instead of stdout")
 	srv         http.Server
 	httpsSrv    http.Server
 	actx, ctx   context.Context
@@ -755,9 +756,13 @@ func main() {
 	var err error
 	flag.Parse()
 
-	logfile, err := os.OpenFile("/tmp/wrp.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err == nil {
-		log.SetOutput(logfile)
+	if *logTarget != "" {
+		logfile, err := os.OpenFile(*logTarget, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err == nil {
+			log.SetOutput(logfile)
+		} else {
+			log.Printf("Logfile '%s' could not be opened!", *logTarget)
+		}
 	}
 
 	log.Printf("Web Rendering Proxy Version %s\n", version)
