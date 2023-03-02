@@ -42,7 +42,9 @@ import (
 	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 	"github.com/soniakeys/quant/median"
 )
 
@@ -73,6 +75,7 @@ var (
 
 //go:embed *.html
 var fs embed.FS
+var clipcontent []byte
 
 type geom struct {
 	w int64
@@ -322,11 +325,6 @@ func (rq *wrpReq) action() chromedp.Action {
 
 // Navigate to the desired URL.
 func (rq *wrpReq) navigate() {
-	chromedp.ListenTarget(ctx, func(v interface{}) {
-		if ev, ok := v.(*browser.EventDownloadWillBegin); ok {
-			log.Printf("Download will begin %s", ev.URL)
-		}
-	})
 	ctxErr(chromedp.Run(ctx, rq.action()), rq.w)
 }
 
@@ -625,6 +623,39 @@ func imgServer(w http.ResponseWriter, r *http.Request) {
 	w.(http.Flusher).Flush()
 }
 
+func clipServer(w http.ResponseWriter, r *http.Request) {
+	if !checkBearerToken(r) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.(http.Flusher).Flush()
+
+		return
+	}
+	log.Printf("%s Clip requested: %s\n", r.RemoteAddr, r.URL.RawQuery)
+	clipboardPermission := browser.PermissionDescriptor{Name: "clipboard-read"}
+	str1 := kb.Control + "C"
+	actions := make(chromedp.Tasks, 0)
+	actions = append(actions, browser.SetPermission(&clipboardPermission, browser.PermissionSettingGranted))
+	actions = append(actions, chromedp.KeyEvent(str1))
+	if r.URL.RawQuery == "copy" {
+		actions = append(actions,
+			chromedp.Evaluate(`window.getSelection().toString()`, &clipcontent, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+				return p.WithAwaitPromise(true)
+			}))
+	} else {
+		actions = append(actions,
+			chromedp.Evaluate(`window.navigator.clipboard.readText()`, &clipcontent, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+				return p.WithAwaitPromise(true)
+			}))
+	}
+	chromedp.Run(ctx, actions)
+	w.Header().Set("Content-Length", strconv.Itoa(len(clipcontent)))
+	w.Header().Set("Cache-Control", "max-age=0")
+	w.Header().Set("Expires", "-1")
+	w.Header().Set("Pragma", "no-cache")
+	w.Write(clipcontent)
+	w.(http.Flusher).Flush()
+}
+
 // Process HTTP requests for Shutdown via '/shutdown/' url
 func haltServer(w http.ResponseWriter, r *http.Request) {
 	log.Printf("%s Shutdown Request for %s\n", r.RemoteAddr, r.URL.Path)
@@ -788,6 +819,7 @@ func main() {
 	)
 	actx, acncl = chromedp.NewExecAllocator(context.Background(), opts...)
 	defer acncl()
+
 	ctx, cncl = chromedp.NewContext(actx)
 	defer cncl()
 
@@ -807,6 +839,7 @@ func main() {
 	http.HandleFunc("/", pageServer)
 	http.HandleFunc("/map/", mapServer)
 	http.HandleFunc("/img/", imgServer)
+	http.HandleFunc("/clip/", clipServer)
 	http.HandleFunc("/shutdown/", haltServer)
 	http.HandleFunc("/favicon.ico", http.NotFound)
 
