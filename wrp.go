@@ -44,7 +44,6 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/chromedp/chromedp/kb"
 	"github.com/soniakeys/quant/median"
 )
 
@@ -632,10 +631,8 @@ func clipServer(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("%s Clip requested: %s\n", r.RemoteAddr, r.URL.RawQuery)
 	clipboardPermission := browser.PermissionDescriptor{Name: "clipboard-read"}
-	str1 := kb.Control + "C"
 	actions := make(chromedp.Tasks, 0)
 	actions = append(actions, browser.SetPermission(&clipboardPermission, browser.PermissionSettingGranted))
-	actions = append(actions, chromedp.KeyEvent(str1))
 	if r.URL.RawQuery == "copy" {
 		actions = append(actions,
 			chromedp.Evaluate(`window.getSelection().toString()`, &clipcontent, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
