@@ -127,7 +127,6 @@ type wrpReq struct {
 	mouseY   int64   // mouseY down
 	mouseX2  int64   // mouseX release
 	mouseY2  int64   // mouseY release
-	numClick int64   // number of clicks
 	keys     string  // keys to send
 	buttons  string  // Fn buttons
 	imgType  string  // imgtype
@@ -262,6 +261,30 @@ func MouseDrag(x1, y1, x2, y2 float64, opts ...chromedp.MouseOption) chromedp.Mo
 	})
 }
 
+func MouseClick2(x, y float64, opts ...chromedp.MouseOption) chromedp.MouseAction {
+	return chromedp.ActionFunc(func(ctx context.Context) error {
+		p := &input.DispatchMouseEventParams{
+			Type:       input.MousePressed,
+			X:          x,
+			Y:          y,
+			Button:     input.Left,
+			ClickCount: 2,
+		}
+
+		// apply opts
+		for _, o := range opts {
+			p = o(p)
+		}
+
+		if err := p.Do(ctx); err != nil {
+			return err
+		}
+
+		p.Type = input.MouseReleased
+		return p.Do(ctx)
+	})
+}
+
 // Determine what action to take
 func (rq *wrpReq) action() chromedp.Action {
 	rq.downurl = ""
@@ -286,9 +309,6 @@ func (rq *wrpReq) action() chromedp.Action {
 	if rq.mouseX > 0 && rq.mouseY > 0 {
 		if rq.mouseX == rq.mouseX2 && rq.mouseY == rq.mouseY2 {
 			log.Printf("%s Mouse Click %d,%d\n", rq.r.RemoteAddr, rq.mouseX, rq.mouseY)
-			if rq.numClick == 2 {
-				chromedp.MouseClickXY(float64(rq.mouseX)/float64(rq.zoom), float64(rq.mouseY)/float64(rq.zoom))
-			}
 			return chromedp.MouseClickXY(float64(rq.mouseX)/float64(rq.zoom), float64(rq.mouseY)/float64(rq.zoom))
 		} else {
 			log.Printf("%s Mouse Move Click %d,%d,%d,%d\n", rq.r.RemoteAddr, rq.mouseX, rq.mouseY, rq.mouseX2, rq.mouseY2)
@@ -591,8 +611,6 @@ func mapServer(w http.ResponseWriter, r *http.Request) {
 		rq.mouseX2 = rq.mouseX
 		rq.mouseY2 = rq.mouseY
 	}
-	rq.numClick = 1
-	fmt.Sscanf(r.URL.RawQuery, "%d,%d,%d,%d,%d", &rq.mouseX, &rq.mouseY, &rq.mouseX2, &rq.mouseY2, rq.numClick)
 	//
 	log.Printf("%s WrpReq from ISMAP: %+v\n", r.RemoteAddr, rq)
 	if len(rq.url) < 4 {
