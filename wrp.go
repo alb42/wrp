@@ -44,6 +44,7 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 	"github.com/soniakeys/quant/median"
 )
 
@@ -125,6 +126,7 @@ type wrpReq struct {
 	mouseY   int64   // mouseY down
 	mouseX2  int64   // mouseX release
 	mouseY2  int64   // mouseY release
+	numClick int64   // number of clicks
 	keys     string  // keys to send
 	buttons  string  // Fn buttons
 	imgType  string  // imgtype
@@ -280,6 +282,9 @@ func (rq *wrpReq) action() chromedp.Action {
 	if rq.mouseX > 0 && rq.mouseY > 0 {
 		if rq.mouseX == rq.mouseX2 && rq.mouseY == rq.mouseY2 {
 			log.Printf("%s Mouse Click %d,%d\n", rq.r.RemoteAddr, rq.mouseX, rq.mouseY)
+			if rq.numClick == 2 {
+				chromedp.MouseClickXY(float64(rq.mouseX)/float64(rq.zoom), float64(rq.mouseY)/float64(rq.zoom))
+			}
 			return chromedp.MouseClickXY(float64(rq.mouseX)/float64(rq.zoom), float64(rq.mouseY)/float64(rq.zoom))
 		} else {
 			log.Printf("%s Mouse Move Click %d,%d,%d,%d\n", rq.r.RemoteAddr, rq.mouseX, rq.mouseY, rq.mouseX2, rq.mouseY2)
@@ -304,13 +309,17 @@ func (rq *wrpReq) action() chromedp.Action {
 		case "Rt":
 			return chromedp.KeyEvent("\r")
 		case "<":
-			return chromedp.KeyEvent("\u0302")
+			return chromedp.KeyEvent(kb.ArrowLeft)
 		case "^":
-			return chromedp.KeyEvent("\u0304")
+			return chromedp.KeyEvent(kb.ArrowUp)
 		case "v":
-			return chromedp.KeyEvent("\u0301")
+			return chromedp.KeyEvent(kb.ArrowDown)
 		case ">":
-			return chromedp.KeyEvent("\u0303")
+			return chromedp.KeyEvent(kb.ArrowRight)
+		case "Pu":
+			return chromedp.KeyEvent(kb.PageUp)
+		case "Pd":
+			return chromedp.KeyEvent(kb.PageDown)
 		}
 	}
 	// Keys
@@ -578,6 +587,9 @@ func mapServer(w http.ResponseWriter, r *http.Request) {
 		rq.mouseX2 = rq.mouseX
 		rq.mouseY2 = rq.mouseY
 	}
+	rq.numClick = 1
+	fmt.Sscanf(r.URL.RawQuery, "%d,%d,%d,%d,%d", &rq.mouseX, &rq.mouseY, &rq.mouseX2, &rq.mouseY2, rq.numClick)
+	//
 	log.Printf("%s WrpReq from ISMAP: %+v\n", r.RemoteAddr, rq)
 	if len(rq.url) < 4 {
 		rq.printHTML(printParams{bgColor: "#FFFFFF"})
