@@ -13,6 +13,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"html"
 	"html/template"
 	"image"
 	"image/color/palette"
@@ -177,6 +178,8 @@ func (rq *wrpReq) printHTML(p printParams) {
 	rq.w.Header().Set("Expires", "-1")
 	rq.w.Header().Set("Pragma", "no-cache")
 	rq.w.Header().Set("Content-Type", "text/html")
+	// special hack for ' seems not to translate well to HTML, replace it with `
+	rq.title = strings.Replace(rq.title, "'", "`", -1)
 	data := uiData{
 		Version:    version,
 		URL:        rq.url,
@@ -192,7 +195,7 @@ func (rq *wrpReq) printHTML(p printParams) {
 		ImgURL:     p.imgURL,
 		MapURL:     p.mapURL,
 		PageHeight: p.pageHeight,
-		Title:      rq.title,
+		Title:      html.EscapeString(rq.title),
 		DownURL:    rq.downurl,
 		DownType:   rq.downtype,
 	}
@@ -208,6 +211,7 @@ func isDownloadable(mime string) bool {
 		"application/x-javascript",
 		"application/xhtml+xml",
 		"application/x-httpd-php",
+		"application/xml",
 		"application/json",
 		"image/gif",
 		"image/jpeg",
