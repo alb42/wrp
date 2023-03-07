@@ -165,10 +165,11 @@ func (rq *wrpReq) parseForm() {
 	case "png":
 	case "gif":
 	case "jpg":
+	case "iff":
 	default:
 		rq.imgType = *defType
 	}
-	log.Printf("%s WrpReq from UI Form: %+v\n", rq.r.RemoteAddr, rq)
+	//log.Printf("%s WrpReq from UI Form: %+v\n", rq.r.RemoteAddr, rq)
 }
 
 // Display WP UI
@@ -482,6 +483,15 @@ func (rq *wrpReq) capture() {
 		iW = cfg.Width
 		iH = cfg.Height
 		log.Printf("%s Got PNG image: %s, Size: %s, Res: %dx%d\n", rq.r.RemoteAddr, imgPath, sSize, iW, iH)
+	case "iff":
+		pngBuf := bytes.NewBuffer(pngCap)
+		img[imgPath] = *pngBuf
+		cfg, _, _ := image.DecodeConfig(pngBuf)
+		sSize = fmt.Sprintf("%.0f KB", float32(len(pngBuf.Bytes()))/1024.0)
+		iW = cfg.Width
+		iH = cfg.Height
+		log.Printf("%s Got PNG image: %s, Size: %s, Res: %dx%d\n", rq.r.RemoteAddr, imgPath, sSize, iW, iH)
+		img[imgPath] = *bytes.NewBuffer(convertToIFF(imgPath, rq.colors, img[imgPath]))
 	case "gif":
 		i, err := png.Decode(bytes.NewReader(pngCap))
 		if err != nil {
@@ -811,6 +821,67 @@ func optimizeImageFile(imgPath string, colors int64, buffer bytes.Buffer) []byte
 	}(tmpFileName)
 
 	return b
+}
+
+func convertToIFF(imgPath string, colors int64, buffer bytes.Buffer) []byte {
+	var tmpFileName = strings.Replace(imgPath, ".iff", ".png", 1)
+	tmpFileName = strings.Replace(tmpFileName, "/img/", "/tmp/", 1)
+	var targetFileName = strings.Replace(imgPath, "/img/", "/tmp/", 1)
+	var scriptName = strings.Replace(targetFileName, ".iff", ".sh", 1)
+
+	err := ioutil.WriteFile(tmpFileName, buffer.Bytes(), 0644)
+	if err != nil {
+		log.Print("Unable to write tempfile to convert to IFF: ", err)
+	}
+
+	fi, err := os.Stat(tmpFileName)
+	if err != nil {
+		log.Print("Unable to readback IFF image: ", err)
+	}
+	var oldSize = fi.Size() / 1024
+
+	var depth int64 = int64(math.Round(math.Log2(float64(colors))))
+
+	var script = "#!/bin/bash\npngtopnm " + tmpFileName + " | ppmquant -nofs " + fmt.Sprint(colors) + " | ppmtoilbm -fixplanes " + fmt.Sprint(depth) + " >" + targetFileName
+	{
+		err := ioutil.WriteFile(scriptName, []byte(script), 0700)
+		if err != nil {
+			log.Print("Unable to write script to convert to IFF: ", err)
+		}
+	}
+	f1, err1 := exec.Command(scriptName).Output()
+	if err1 != nil {
+		log.Print("Unable to convert to IFF: ", err1.Error(), " ", string(f1))
+	}
+	os.Remove(tmpFileName)
+	os.Remove(scriptName)
+
+	fi1, err := os.Stat(targetFileName)
+	if err != nil {
+		log.Print("Unable to readback IFF image: ", err)
+	}
+	size := fi1.Size() / 1024
+	var nbuffer []byte
+	if size > 0 {
+		b, err := os.ReadFile(targetFileName)
+		if err != nil {
+			log.Print("Unable to readback IFF image: ", err)
+			nbuffer = buffer.Bytes()
+		} else {
+			nbuffer = b
+		}
+	} else {
+		nbuffer = buffer.Bytes()
+	}
+	log.Printf("converted image old size %d KB, new filesize: %d KB", oldSize, size)
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			log.Printf("Can't unlink tmp file")
+		}
+	}(targetFileName)
+
+	return nbuffer
 }
 
 // Main
