@@ -1,12 +1,12 @@
 FROM chromedp/headless-shell
 
-# Install image optimization tools
-RUN apt-get -y update --fix-missing && \
-    apt-get upgrade -y && \
-    apt-get --no-install-recommends install -y optipng jpegoptim gifsicle && \
-    rm -rf /var/lib/apt/lists/*
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update -y \
+  && apt-get -y install fonts-arphic-ukai fonts-arphic-uming fonts-ipafont-mincho fonts-ipafont-gothic fonts-unfonts-core netpbm optipng jpegoptim gifsicle \
+  && apt-get -y clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 ADD wrp /wrp
 ENTRYPOINT ["/wrp"]
 ENV PATH="/headless-shell:${PATH}"
-LABEL maintainer="as@tenoware.com"
+LABEL maintainer="alb42@web.de"
