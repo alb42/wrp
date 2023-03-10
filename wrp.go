@@ -786,12 +786,14 @@ func optimizeImageFile(imgPath string, colors int64, buffer bytes.Buffer) []byte
 			log.Print("Unable to optimize PNG image: ", err)
 		}
 	case "jpg":
-	case "peg":
+	case "jpeg":
 		// @todo savings barely existing (around 1kb)
 		_, err := exec.Command("jpegoptim", "-s", "-p", "-P", tmpFileName).Output()
 		if err != nil {
 			log.Print("Unable to optimize JPG image: ", err)
 		}
+	case "iff":
+		return buffer.Bytes()
 	case "gif":
 		return buffer.Bytes()
 		// @todo savings sometimes even negative - guess we can omit this one, wtf. try without palette stuff
