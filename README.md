@@ -1,86 +1,23 @@
 # WRP - Web Rendering Proxy
+## AmiFox Server Version
 
 A browser-in-browser "proxy" server that allows to use historical / vintage web browsers on the modern web. It works by rendering a web page in to a GIF or PNG image with clickable imagemap.
 
-![Internet Explorer 1.5 doing Gmail](wrp.png)
+![AmiFox with OpenStreetmap](wrp.png)
+
+This server can be used as the original WRP in a webbrowser but works much better using the dedicated [AmiFox](https://blog.alb42.de/programs/AmiFox) app available for m68k Amiga
 
 ## Usage Instructions
 
-* [Download a WRP binary](https://github.com/tenox7/wrp/releases/) and run it on a machine that will become your WRP gateway/server. This should be modern hardware, OS and Google Chrome / Chromium Browser is required to be preinstalled. Do not try to run WRP on an old machine like Windows XP or 98.
-* Make sure you have disabled firewall or open port WRP is listening on (by default 8080).
-* Point your legacy browser to `http://address:port` of the WRP server. Do not set or use it as a "proxy server".
-* Type a search string or a full http/https URL and click **Go**.
-* Adjust your screen **W**idth/**H**eight/**S**cale/**C**olors to fit in your old browser.
-* Scroll web page by clicking on the in-image scroll bar.
-* WRP also allows **a single tall image without the vertical scrollbar** and use client scrolling. To enable this, simply height **H** to `0` . However this should not be used with old and low spec clients. Such tall images will be very large, take a lot of memory and long time to process, especially for GIFs.
-* Do not use client browser history-back, instead use **Bk** button in the app.
-* You can re-capture page screenshot without reloading by using **St** (Stop). This is useful if page didn't render fully before screenshot is taken.
-* You can also reload and re-capture current page with **Re** (Reload).
-* To send keystrokes, fill **K** input box and press **Go**. There also are buttons for backspace, enter and arrow keys.
-* Prefer PNG over GIF if your browser supports it. PNG is much faster, whereas GIF requires a lot of additional processing on both client and server to encode/decode. Jpeg encoding is also quite fast.
-* GIF images are by default encoded with 216 colors, "web safe" palette. This uses an ultra fast but not very accurate color mapping algorithm. If you want better color representation switch to 256 color mode.
-
-## UI explanation
-
-The first unnamed input box is either search (google) or URL starting with http/https
-
-**Go** instructs browser to navigate to the url or perform search
-
-**Bk** is History Back
-
-**St** is Stop, also re-capture screenshot without refreshing page, for example if page
-render takes a long time or it changes periodically
-
-**Re** is Reload
-
-**W** is width in pixels, adjust it to get rid of horizontal scroll bar
-
-**H** is height in pixels, adjust it to get rid of vertical scroll bar.
-It can also be set to 0 to produce one very tall image and use
-client scroll. This 0 size is experimental, buggy and should be
-used with PNG and lots of memory on a client side.
-
-**Z** is zoom or scale
-
-**C** is colors, for GIF images only (unused in PNG, JPG)
-
-**K** is keystroke input, you can type some letters in it and when you click Go it will be typed in the remote browser.
-
-**Bs** is backspace
-
-**Rt** is return / enter
-
-**< ^ v >** are arrow keys, typically for navigating a map, buggy.
-
-### UI Customization
-
-WRP supports customizing it's own UI using HTML Template file. Download [wrp.html](wrp.html) place in the same directory with wrp binary customize it to your liking.
+* Start the WRP executable or docker container
+* Add a ToolType to AmiFox WRPSERVER=name_or_ip_of_WRP:Port_of_WRP
+* Add a ToolType WRPTOKEN=token if you also added a token as security, see Flag -token
 
 ## Docker
 
 ```shell
-$ docker run -d -p 80:8080 tenox7/wrp
+$ docker run -d -p 80:8080 alb42/amifoxserver
 ```
-
-## Google Cloud Run
-
-```shell
-$ gcloud run deploy --platform managed --image=gcr.io/tenox7/wrp:latest --memory=2Gi --args='-t=png','-g=1280x0x256'
-```
-
-Or from [Gcloud Console](https://console.cloud.google.com/run). Use `gcr.io/tenox7/wrp:latest` as container image URL.
-
-Note that unfortunately GCR forces https. Your browser support of encryption protocols and certification authorities will vary.
-
-## Azure Container Instances
-
-```shell
-$ az container create --resource-group wrp --name wrp --image gcr.io/tenox7/wrp:latest --cpu 1 --memory 2 --ports 80 --protocol tcp --os-type Linux --ip-address Public --command-line '/wrp -l :80 -t png -g 1280x0x256'
-```
-
-Or from the [Azure Console](https://portal.azure.com/#create/Microsoft.ContainerInstances). Use `gcr.io/tenox7/wrp:latest` or `tenox7/wrp:latest` for image name.
-
-Fortunately ACI allows port 80 without encryption.
 
 ## Flags
 

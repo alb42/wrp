@@ -786,7 +786,7 @@ func optimizeImageFile(imgPath string, colors int64, buffer bytes.Buffer) []byte
 			log.Print("Unable to optimize PNG image: ", err)
 		}
 	case "jpg":
-	case "jpeg":
+	case "peg":
 		// @todo savings barely existing (around 1kb)
 		_, err := exec.Command("jpegoptim", "-s", "-p", "-P", tmpFileName).Output()
 		if err != nil {
