@@ -118,23 +118,24 @@ type printParams struct {
 
 // WRP Request
 type wrpReq struct {
-	url      string  // url
-	width    int64   // width
-	height   int64   // height
-	zoom     float64 // zoom/scale
-	colors   int64   // #colors
-	mouseX   int64   // mouseX down
-	mouseY   int64   // mouseY down
-	mouseX2  int64   // mouseX release
-	mouseY2  int64   // mouseY release
-	keys     string  // keys to send
-	buttons  string  // Fn buttons
-	imgType  string  // imgtype
-	title    string  // titlepage
-	downurl  string
-	downtype string
-	w        http.ResponseWriter
-	r        *http.Request
+	url       string  // url
+	width     int64   // width
+	height    int64   // height
+	minheight int64   // minimum height when height = 0
+	zoom      float64 // zoom/scale
+	colors    int64   // #colors
+	mouseX    int64   // mouseX down
+	mouseY    int64   // mouseY down
+	mouseX2   int64   // mouseX release
+	mouseY2   int64   // mouseY release
+	keys      string  // keys to send
+	buttons   string  // Fn buttons
+	imgType   string  // imgtype
+	title     string  // titlepage
+	downurl   string
+	downtype  string
+	w         http.ResponseWriter
+	r         *http.Request
 }
 
 // Parse HTML Form, Process Input Boxes, Etc.
@@ -150,6 +151,7 @@ func (rq *wrpReq) parseForm() {
 		rq.width = defGeom.w
 		rq.height = defGeom.h
 	}
+	rq.minheight, _ = strconv.ParseInt(rq.r.FormValue("mh"), 10, 64)
 	rq.zoom, _ = strconv.ParseFloat(rq.r.FormValue("z"), 64)
 	if rq.zoom < 0.1 {
 		rq.zoom = 1.0
@@ -461,6 +463,9 @@ func (rq *wrpReq) capture() {
 	height := int64(float64(rq.height) / rq.zoom)
 	if rq.height == 0 && h > 0 {
 		height = h + 30
+		if height < int64(float64(rq.minheight)/rq.zoom) {
+			height = int64(float64(rq.minheight) / rq.zoom)
+		}
 	}
 	chromedp.Run(
 		ctx, emulation.SetDeviceMetricsOverride(int64(float64(rq.width)/rq.zoom), height, rq.zoom, false),
