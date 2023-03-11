@@ -7,6 +7,24 @@ A browser-in-browser "proxy" server that allows to use historical / vintage web 
 
 This server can be used as the original WRP in a webbrowser but works much better using the dedicated [AmiFox](https://blog.alb42.de/programs/AmiFox) app available for m68k Amiga
 
+## Differences to the official WRP
+
+The AmiFox server is a slightly adapted Version of the [official WRP](https://github.com/tenox7/wrp). Changes are made to work better with a native amiga program.
+e.g.
+* Added a forward history button
+* Keys for page up/page down added
+* IFF-ILBM Format, picture format added, it's not viewable in Browsers but work very nicely on Amiga
+* Click and Drag, it is possible to click on a position and drag the mouse before release and that is send in that way to the server, very useful for scrollbars or map applications. Not possible in a simple Browser though (would need working javascript) but in a native Amiga program of course possible
+* Copy selected text, the click and drag feature allows it to select text, that text can be copied to the client
+* Get clipboard, also when the page copies something to clipboard, it can be transfered to clipboard
+* Downloads, announce downloadable content to the client (with an exception list of mime types)
+* SSL added, it is possible to use SSL encrypted traffic to the server
+* Token, protect the running server by a token which must be send with every request to the server (makes the server unusable in browsers)
+* removed logging of keystrokes to the log file
+* Added a AmiFox-Server version to footer
+
+All changes are made in a way to keep the original functionality intact, therefore the server is meant as Server for AmiFox component but still usable like a regular WRP.
+
 ## Usage Instructions
 
 * Start the WRP executable or docker container
