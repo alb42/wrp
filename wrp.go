@@ -61,7 +61,7 @@ var (
 	fgeom       = flag.String("g", "1152x600x216", "Geometry: width x height x colors, height can be 0 for unlimited")
 	htmFnam     = flag.String("ui", "wrp.html", "HTML template file for the UI")
 	delay       = flag.Duration("s", 2*time.Second, "Delay/sleep after page is rendered and before screenshot is taken")
-	imgOpti     = flag.Bool("O", false, "Optimize images with external tools (optipng, jpegoptim)")
+	imgOpti     = flag.Bool("O", false, "Optimize PNG images with external tool (optipng)")
 	token       = flag.String("token", "", "If set, all requests need to have this set as Bearer header")
 	logTarget   = flag.String("log", "", "If set, logging will go to this file instead of stdout")
 	srv         http.Server
@@ -487,7 +487,12 @@ func (rq *wrpReq) capture() {
 		sSize = fmt.Sprintf("%.0f KB", float32(len(pngBuf.Bytes()))/1024.0)
 		iW = cfg.Width
 		iH = cfg.Height
-		log.Printf("%s Got PNG image: %s, Size: %s, Res: %dx%d\n", rq.r.RemoteAddr, imgPath, sSize, iW, iH)
+
+		if *imgOpti {
+			img[imgPath] = *bytes.NewBuffer(optimizeImageFile(imgPath, img[imgPath]))
+		}
+
+		log.Printf("%s Got PNG image: %s, original size: %s, Res: %dx%d\n", rq.r.RemoteAddr, imgPath, sSize, iW, iH)
 	case "iff":
 		pngBuf := bytes.NewBuffer(pngCap)
 		img[imgPath] = *pngBuf
@@ -537,10 +542,6 @@ func (rq *wrpReq) capture() {
 		iW = i.Bounds().Max.X
 		iH = i.Bounds().Max.Y
 		log.Printf("%s Encoded JPG image: %s, Size: %s, Quality: %d, Res: %dx%d, Time: %vms\n", rq.r.RemoteAddr, imgPath, sSize, *jpgQual, iW, iH, time.Since(st).Milliseconds())
-	}
-
-	if *imgOpti {
-		img[imgPath] = *bytes.NewBuffer(optimizeImageFile(imgPath, rq.colors, img[imgPath]))
 	}
 
 	rq.printHTML(printParams{
@@ -775,8 +776,7 @@ func printIPs(b string) {
 	log.Print("My IP addresses: ", m)
 }
 
-func optimizeImageFile(imgPath string, colors int64, buffer bytes.Buffer) []byte {
-	var fileExt = string(imgPath[len(imgPath)-3:])
+func optimizeImageFile(imgPath string, buffer bytes.Buffer) []byte {
 	var tmpFileName = strings.Replace(imgPath, "/img/", "/tmp/", 1)
 
 	err := ioutil.WriteFile(tmpFileName, buffer.Bytes(), 0644)
@@ -784,28 +784,9 @@ func optimizeImageFile(imgPath string, colors int64, buffer bytes.Buffer) []byte
 		log.Print("Unable to write tempfile to optimize image: ", err)
 	}
 
-	switch fileExt {
-	case "png":
-		_, err := exec.Command("optipng", tmpFileName).Output()
-		if err != nil {
-			log.Print("Unable to optimize PNG image: ", err)
-		}
-	case "jpg":
-	case "peg":
-		// @todo savings barely existing (around 1kb)
-		_, err := exec.Command("jpegoptim", "-s", "-p", "-P", tmpFileName).Output()
-		if err != nil {
-			log.Print("Unable to optimize JPG image: ", err)
-		}
-	case "iff":
-		return buffer.Bytes()
-	case "gif":
-		return buffer.Bytes()
-		// @todo savings sometimes even negative - guess we can omit this one, wtf. try without palette stuff
-		_, err := exec.Command("gifsicle", "-i", tmpFileName, "-O3", "--colors", strconv.FormatInt(colors, 10), "-lossy=100", "-o", tmpFileName).Output()
-		if err != nil {
-			log.Print("Unable to optimize GIF image: ", err)
-		}
+	_, err = exec.Command("optipng", tmpFileName).Output()
+	if err != nil {
+		log.Print("Unable to optimize PNG image: ", err)
 	}
 
 	fi, err := os.Stat(tmpFileName)
