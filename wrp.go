@@ -38,7 +38,9 @@ import (
 
 	"github.com/MaxHalford/halfgone"
 	"github.com/chromedp/cdproto/browser"
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/css"
+	"github.com/chromedp/cdproto/dom"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/network"
@@ -637,6 +639,80 @@ func mapServer(w http.ResponseWriter, r *http.Request) {
 	rq.capture()
 }
 
+// Process HTTP requests to Position '/pos/' url
+func posServer(w http.ResponseWriter, r *http.Request) {
+	if !checkBearerToken(r) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.(http.Flusher).Flush()
+
+		return
+	}
+
+	posurl := strings.Replace(r.URL.Path, "/pos/", "/map/", 1)
+	log.Printf("%s Position Request for %s [%+v]\n", r.RemoteAddr, r.URL.Path, r.URL.RawQuery)
+	rq, ok := ismap[posurl]
+	rq.r = r
+	rq.w = w
+	if !ok {
+		fmt.Fprintf(w, "Unable to find map %s\n", r.URL.Path)
+		log.Printf("Unable to find map %s\n", r.URL.Path)
+		return
+	}
+	if !*noDel {
+		defer delete(ismap, r.URL.Path)
+	}
+	n, err := fmt.Sscanf(r.URL.RawQuery, "%d,%d", &rq.mouseX, &rq.mouseY)
+	if err != nil || n != 2 {
+		fmt.Fprintf(w, "n=%d, err=%s\n", n, err)
+		log.Printf("%s Position n=%d, err=%s\n", r.RemoteAddr, n, err)
+		return
+	}
+	ctxx := chromedp.FromContext(ctx)
+	var nodes []*cdp.Node
+	var target string
+	var baseURL string
+
+	ctx2, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
+	chromedp.Run(ctx2,
+		chromedp.Location(&baseURL),
+		chromedp.Nodes("a", &nodes, chromedp.ByQueryAll),
+	)
+	last := len(baseURL) - 1
+	if last < 1 {
+		fmt.Fprintf(w, "Unable to URL\n")
+		log.Printf("Unable to URL \n")
+		return
+	}
+	if baseURL[last] == '/' {
+		baseURL = baseURL[:last]
+	}
+	mx := float64(rq.mouseX) / float64(rq.zoom)
+	my := float64(rq.mouseY) / float64(rq.zoom)
+	for _, n := range nodes {
+		b, err := dom.GetBoxModel().WithNodeID(n.NodeID).Do(cdp.WithExecutor(ctx, ctxx.Target))
+		target = n.AttributeValue("href")
+		if err == nil && len(b.Content) > 6 {
+			if (mx >= b.Content[0]) && (mx <= b.Content[4]) && (my >= b.Content[1]) && (my <= b.Content[5]) {
+				log.Printf("Found link at this position %s", target)
+				target = fmt.Sprintf("%s\n%d,%d,%d,%d", target, int64(b.Content[0]*float64(rq.zoom)), int64(b.Content[1]*float64(rq.zoom)), int64(b.Content[4]*float64(rq.zoom)), int64(b.Content[5]*float64(rq.zoom)))
+				break
+			}
+		}
+		target = ""
+	}
+
+	log.Printf("sent position answer %s", target)
+	w.Header().Set("Content-Length", strconv.Itoa(len(target)))
+	w.Header().Set("Cache-Control", "max-age=0")
+	w.Header().Set("Expires", "-1")
+	w.Header().Set("Pragma", "no-cache")
+	w.Write([]byte(target))
+	w.(http.Flusher).Flush()
+
+}
+
 // Process HTTP requests for images '/img/' url
 func imgServer(w http.ResponseWriter, r *http.Request) {
 	if !checkBearerToken(r) {
@@ -928,6 +1004,7 @@ func main() {
 
 	http.HandleFunc("/", pageServer)
 	http.HandleFunc("/map/", mapServer)
+	http.HandleFunc("/pos/", posServer)
 	http.HandleFunc("/img/", imgServer)
 	http.HandleFunc("/clip/", clipServer)
 	http.HandleFunc("/shutdown/", haltServer)
