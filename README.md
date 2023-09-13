@@ -42,7 +42,7 @@ $ docker run -d -p 80:8080 alb42/amifoxserver
 ```text
 -l     listen address:port (default :8080)
 -sl    TLS listen address:port (default :8081)
--t     image type gif, png or jpg (default gif)
+-t     image type iff, gif, png or jpg (default gif)
 -O     Optimize images with external tools (optipng, jpegoptim)
 -g     image geometry, WxHxC, height can be 0 for unlimited (default 1152x600x216)
        C (number of colors) is only used for GIF
