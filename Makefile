@@ -5,9 +5,11 @@ NAME ?= amifoxserver
 all: wrp
 
 wrp: wrp.go
+	export CGO_ENABLED=0
 	go build wrp.go
 
 cross:
+	export CGO_ENABLED=0
 	GOOS=linux GOARCH=amd64 go build -a -o wrp-amd64-linux wrp.go
 	GOOS=freebsd GOARCH=amd64 go build -a -o wrp-amd64-freebsd wrp.go
 	GOOS=openbsd GOARCH=amd64 go build -a -o wrp-amd64-openbsd wrp.go
