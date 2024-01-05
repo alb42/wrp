@@ -1,7 +1,7 @@
 # WRP - Web Rendering Proxy
 ## AmiFox Server Version
 
-A browser-in-browser "proxy" server that allows to use historical / vintage web browsers on the modern web. It works by rendering a web page in to a GIF or PNG image with clickable imagemap.
+A browser-in-browser "proxy" server that allows to use historical / vintage web browsers on the modern web. It works by rendering a web page in to a GIF, JPG, PNG or even ILBM IFF image with clickable imagemap.
 
 ![AmiFox with OpenStreetmap](wrp.png)
 
@@ -19,7 +19,7 @@ e.g.
 * Get clipboard, also when the page copies something to clipboard, it can be transfered to clipboard
 * Downloads, announce downloadable content to the client (with an exception list of mime types)
 * SSL added, it is possible to use SSL encrypted traffic to the server
-* Token, protect the running server by a token which must be send with every request to the server (makes the server unusable in browsers)
+* Token, protect the running server by a token which must be send with every request to the server (makes the server unusable in browsers, but more secure in Apps / via API)
 * removed logging of keystrokes to the log file
 * Added a AmiFox-Server version to footer
 
@@ -42,8 +42,8 @@ $ docker run -d -p 80:8080 alb42/amifoxserver
 ```text
 -l     listen address:port (default :8080)
 -sl    TLS listen address:port (default :8081)
--t     image type gif, png or jpg (default gif)
--O     Optimize images with external tools (optipng, jpegoptim)
+-t     image type iff, gif, png or jpg (default gif)
+-O     Optimize PNG images with external tool (optipng)
 -g     image geometry, WxHxC, height can be 0 for unlimited (default 1152x600x216)
        C (number of colors) is only used for GIF
 -q     Jpeg image quality, default 80%
