@@ -2,7 +2,7 @@
 // WRP - Web Rendering Proxy
 //
 // Copyright (c) 2013-2018 Antoni Sawicki
-// Copyright (c) 2019-2022 Google LLC
+// Copyright (c) 2019-2024 Google LLC
 //
 
 package main
@@ -63,6 +63,7 @@ var (
 	fgeom       = flag.String("g", "1152x600x216", "Geometry: width x height x colors, height can be 0 for unlimited")
 	htmFnam     = flag.String("ui", "wrp.html", "HTML template file for the UI")
 	delay       = flag.Duration("s", 2*time.Second, "Delay/sleep after page is rendered and before screenshot is taken")
+	userAgent   = flag.String("ua", "", "override chrome user agent")
 	imgOpti     = flag.Bool("O", false, "Optimize PNG images with external tool (optipng)")
 	token       = flag.String("token", "", "If set, all requests need to have this set as Bearer header")
 	logTarget   = flag.String("log", "", "If set, logging will go to this file instead of stdout")
@@ -982,7 +983,12 @@ func main() {
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", *headless),
 		chromedp.Flag("hide-scrollbars", false),
+		chromedp.Flag("enable-automation", false),
+		chromedp.Flag("disable-blink-features", "AutomationControlled"),
 	)
+	if *userAgent != "" {
+		opts = append(opts, chromedp.UserAgent(*userAgent))
+	}
 	actx, acncl = chromedp.NewExecAllocator(context.Background(), opts...)
 	defer acncl()
 
