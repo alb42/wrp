@@ -1,6 +1,6 @@
 module github.com/tenox7/wrp
 
-go 1.21.5
+go 1.21
 
 require (
 	github.com/MaxHalford/halfgone v0.0.0-20171017091812-482157b86ccb
