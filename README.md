@@ -51,6 +51,7 @@ $ docker run -d -p 80:8080 alb42/amifoxserver
 -d     chromedp debug logging (default false)
 -n     do not free maps and images after use (default false)
 -ui    html template file (default "wrp.html")
+-ua  user agent, override the default "headless" agent
 -s     delay/sleep after page is rendered before screenshot is taken (default 2s)
 -token If set, all requests need to have this set as Bearer header
 ```
@@ -64,12 +65,22 @@ $ docker run -d -p 80:8080 alb42/amifoxserver
 
 ### I can't get it to run
 
-This program does not have a GUI and is run from the command line. You may need to enable executable bit on Unix systems, for example:
+This program does not have a GUI and is run from the command line. After downloading, you may need to enable executable bit on Unix systems, for example:
 
 ```shell
 $ cd ~/Downloads
 $ chmod +x wrp-amd64-macos
-$ ./wrp-amd64-macos -t png
+$ ./wrp-amd64-macos
+```
+
+### Websites are blocking headless browsers
+
+This is a well known issue. WRP has some provisions to work around it, but it's a cat and mouse game. The first and
+foremost recommendation is to change `User Agent`, so that it doesn't say "headless". Add `-ua="my agent"` to override the default one.
+Obtain your regular desktop browser user agent and specify it as the flag. For example
+
+```shell
+$ wrp -ua="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
 ```
 
 ## History
@@ -94,6 +105,6 @@ $ ./wrp-amd64-macos -t png
 
 ## Legal Stuff
 
-License: Apache 2.0
-Copyright (c) 2013-2018 Antoni Sawicki
-Copyright (c) 2019-2022 Google LLC
+License: Apache 2.0  
+Copyright (c) 2013-2018 Antoni Sawicki  
+Copyright (c) 2019-2024 Google LLC
