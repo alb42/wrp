@@ -51,7 +51,7 @@ import (
 	"github.com/soniakeys/quant/median"
 )
 
-const version = "4.6.1"
+const version = "4.6.2"
 
 var (
 	addr        = flag.String("l", ":8080", "Listen address:port, default :8080")
@@ -67,6 +67,7 @@ var (
 	imgOpti     = flag.Bool("O", false, "Optimize PNG images with external tool (optipng)")
 	token       = flag.String("token", "", "If set, all requests need to have this set as Bearer header")
 	logTarget   = flag.String("log", "", "If set, logging will go to this file instead of stdout")
+	lang        = flag.String("lang", "", "If set, value will be set as http Accept-Language header on requests")
 	srv         http.Server
 	httpsSrv    http.Server
 	actx, ctx   context.Context
@@ -293,6 +294,20 @@ func MouseClick2(x, y float64, opts ...chromedp.MouseOption) chromedp.MouseActio
 
 // Determine what action to take
 func (rq *wrpReq) action() chromedp.Action {
+	if lang != nil {
+		langValue := *lang
+
+		err := chromedp.Run(ctx, setHeaders(
+			map[string]interface{}{
+				"Accept-Language": langValue,
+			},
+		))
+
+		if err != nil {
+			log.Printf("Error setting HTTP header in chromedp: %s", err)
+		}
+	}
+
 	rq.downurl = ""
 	rq.downtype = ""
 	var IsSet bool
@@ -364,6 +379,13 @@ func (rq *wrpReq) action() chromedp.Action {
 // Navigate to the desired URL.
 func (rq *wrpReq) navigate() {
 	ctxErr(chromedp.Run(ctx, rq.action()), rq.w)
+}
+
+func setHeaders(headers map[string]interface{}) chromedp.Tasks {
+	return chromedp.Tasks{
+		network.Enable(),
+		network.SetExtraHTTPHeaders(network.Headers(headers)),
+	}
 }
 
 // Handle context errors
