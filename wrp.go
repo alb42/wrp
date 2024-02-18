@@ -67,7 +67,6 @@ var (
 	imgOpti     = flag.Bool("O", false, "Optimize PNG images with external tool (optipng)")
 	token       = flag.String("token", "", "If set, all requests need to have this set as Bearer header")
 	logTarget   = flag.String("log", "", "If set, logging will go to this file instead of stdout")
-	lang        = flag.String("lang", "", "If set, value will be set as http Accept-Language header on requests")
 	srv         http.Server
 	httpsSrv    http.Server
 	actx, ctx   context.Context
@@ -107,6 +106,7 @@ type uiData struct {
 	Title      string
 	DownURL    string
 	DownType   string
+	Lang       string
 }
 
 // Parameters for HTML print function
@@ -136,6 +136,7 @@ type wrpReq struct {
 	buttons   string  // Fn buttons
 	imgType   string  // imgtype
 	title     string  // titlepage
+	lang      string  // http Accept-Language value
 	downurl   string
 	downtype  string
 	w         http.ResponseWriter
@@ -175,6 +176,8 @@ func (rq *wrpReq) parseForm() {
 	default:
 		rq.imgType = *defType
 	}
+
+	rq.lang = rq.r.FormValue("lang")
 	//log.Printf("%s WrpReq from UI Form: %+v\n", rq.r.RemoteAddr, rq)
 }
 
@@ -204,6 +207,7 @@ func (rq *wrpReq) printHTML(p printParams) {
 		Title:      html.EscapeString(rq.title),
 		DownURL:    rq.downurl,
 		DownType:   rq.downtype,
+		Lang:       rq.lang,
 	}
 	err := htmlTmpl.Execute(rq.w, data)
 	if err != nil {
@@ -294,18 +298,14 @@ func MouseClick2(x, y float64, opts ...chromedp.MouseOption) chromedp.MouseActio
 
 // Determine what action to take
 func (rq *wrpReq) action() chromedp.Action {
-	if lang != nil {
-		langValue := *lang
+	err := chromedp.Run(ctx, setHeaders(
+		map[string]interface{}{
+			"Accept-Language": rq.lang,
+		},
+	))
 
-		err := chromedp.Run(ctx, setHeaders(
-			map[string]interface{}{
-				"Accept-Language": langValue,
-			},
-		))
-
-		if err != nil {
-			log.Printf("Error setting HTTP header in chromedp: %s", err)
-		}
+	if err != nil {
+		log.Printf("Error setting HTTP header in chromedp: %s", err)
 	}
 
 	rq.downurl = ""

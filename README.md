@@ -55,7 +55,6 @@ $ docker run -d -p 80:8080 alb42/amifoxserver
 -s     delay/sleep after page is rendered before screenshot is taken (default 2s)
 -token If set, all requests need to have this set as Bearer header
 -log If set, logging will be redirected to given file
--lang If set, given value will be passed as 'Accept-Language' header to visited sites
 ```
 
 ## Minimal Requirements
