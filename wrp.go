@@ -51,7 +51,7 @@ import (
 	"github.com/soniakeys/quant/median"
 )
 
-const version = "4.6.1"
+const version = "4.6.2"
 
 var (
 	addr        = flag.String("l", ":8080", "Listen address:port, default :8080")
@@ -106,6 +106,7 @@ type uiData struct {
 	Title      string
 	DownURL    string
 	DownType   string
+	Lang       string
 }
 
 // Parameters for HTML print function
@@ -135,6 +136,7 @@ type wrpReq struct {
 	buttons   string  // Fn buttons
 	imgType   string  // imgtype
 	title     string  // titlepage
+	lang      string  // http Accept-Language value
 	downurl   string
 	downtype  string
 	w         http.ResponseWriter
@@ -174,6 +176,8 @@ func (rq *wrpReq) parseForm() {
 	default:
 		rq.imgType = *defType
 	}
+
+	rq.lang = rq.r.FormValue("lang")
 	//log.Printf("%s WrpReq from UI Form: %+v\n", rq.r.RemoteAddr, rq)
 }
 
@@ -203,6 +207,7 @@ func (rq *wrpReq) printHTML(p printParams) {
 		Title:      html.EscapeString(rq.title),
 		DownURL:    rq.downurl,
 		DownType:   rq.downtype,
+		Lang:       rq.lang,
 	}
 	err := htmlTmpl.Execute(rq.w, data)
 	if err != nil {
@@ -293,6 +298,16 @@ func MouseClick2(x, y float64, opts ...chromedp.MouseOption) chromedp.MouseActio
 
 // Determine what action to take
 func (rq *wrpReq) action() chromedp.Action {
+	err := chromedp.Run(ctx, setHeaders(
+		map[string]interface{}{
+			"Accept-Language": rq.lang,
+		},
+	))
+
+	if err != nil {
+		log.Printf("Error setting HTTP header in chromedp: %s", err)
+	}
+
 	rq.downurl = ""
 	rq.downtype = ""
 	var IsSet bool
@@ -364,6 +379,13 @@ func (rq *wrpReq) action() chromedp.Action {
 // Navigate to the desired URL.
 func (rq *wrpReq) navigate() {
 	ctxErr(chromedp.Run(ctx, rq.action()), rq.w)
+}
+
+func setHeaders(headers map[string]interface{}) chromedp.Tasks {
+	return chromedp.Tasks{
+		network.Enable(),
+		network.SetExtraHTTPHeaders(network.Headers(headers)),
+	}
 }
 
 // Handle context errors
