@@ -298,14 +298,15 @@ func MouseClick2(x, y float64, opts ...chromedp.MouseOption) chromedp.MouseActio
 
 // Determine what action to take
 func (rq *wrpReq) action() chromedp.Action {
-	err := chromedp.Run(ctx, setHeaders(
-		map[string]interface{}{
-			"Accept-Language": rq.lang,
-		},
-	))
-
-	if err != nil {
-		log.Printf("Error setting HTTP header in chromedp: %s", err)
+	if len(rq.lang) > 0 {
+		err := chromedp.Run(ctx, setHeaders(
+			map[string]interface{}{
+				"Accept-Language": rq.lang,
+			},
+		))
+		if err != nil {
+			log.Printf("Error setting HTTP header in chromedp: %s", err)
+		}
 	}
 
 	rq.downurl = ""
