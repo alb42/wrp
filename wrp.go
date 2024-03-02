@@ -148,7 +148,7 @@ func (rq *wrpReq) parseForm() {
 	rq.r.ParseForm()
 	rq.url = rq.r.FormValue("url")
 	if len(rq.url) > 1 && !strings.HasPrefix(rq.url, "http") {
-		rq.url = fmt.Sprintf("http://www.google.com/search?q=%s", url.QueryEscape(rq.url))
+		rq.url = fmt.Sprintf("https://www.google.com/search?q=%s", url.QueryEscape(rq.url))
 	}
 	rq.width, _ = strconv.ParseInt(rq.r.FormValue("w"), 10, 64)
 	rq.height, _ = strconv.ParseInt(rq.r.FormValue("h"), 10, 64)
